@@ -176,6 +176,7 @@ def test_model_reproducibility(sample_data, preprocessor):
         predictions1, predictions2
     ), "モデルの予測結果に再現性がありません"
 
+
 def test_mlflow_model_performance_degradation(sample_data):
     """MLflowから過去と最新のモデルを取得し、性能劣化がないか検証"""
     client = MlflowClient()
@@ -183,7 +184,7 @@ def test_mlflow_model_performance_degradation(sample_data):
     runs = client.search_runs(
         experiment_ids=[experiment.experiment_id],
         order_by=["attributes.start_time DESC"],
-        max_results=2
+        max_results=2,
     )
 
     if len(runs) < 2:
@@ -214,11 +215,11 @@ def test_mlflow_model_performance_degradation(sample_data):
     acc_prev = accuracy_score(y_true, y_pred_prev)
 
     # 精度の比較
-    assert acc_latest >= acc_prev - 0.01, (
-        f"最新モデルの精度が過去より低下: 最新={acc_latest:.4f}, 過去={acc_prev:.4f}"
-    )
+    assert (
+        acc_latest >= acc_prev - 0.01
+    ), f"最新モデルの精度が過去より低下: 最新={acc_latest:.4f}, 過去={acc_prev:.4f}"
 
     # 推論時間の比較
-    assert time_latest <= time_prev + 0.1, (
-        f"最新モデルの推論時間が遅い: 最新={time_latest:.4f}s, 過去={time_prev:.4f}s"
-    )
+    assert (
+        time_latest <= time_prev + 0.1
+    ), f"最新モデルの推論時間が遅い: 最新={time_latest:.4f}s, 過去={time_prev:.4f}s"
