@@ -12,6 +12,10 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 
+import mlflow.pyfunc
+from mlflow.tracking import MlflowClient
+import time
+
 # テスト用データとモデルパスを定義
 DATA_PATH = os.path.join(os.path.dirname(__file__), "../data/Titanic.csv")
 MODEL_DIR = os.path.join(os.path.dirname(__file__), "../models")
@@ -171,10 +175,6 @@ def test_model_reproducibility(sample_data, preprocessor):
     assert np.array_equal(
         predictions1, predictions2
     ), "モデルの予測結果に再現性がありません"
-
-import mlflow.pyfunc
-from mlflow.tracking import MlflowClient
-import time
 
 def test_mlflow_model_performance_degradation(sample_data):
     """MLflowから過去と最新のモデルを取得し、性能劣化がないか検証"""
