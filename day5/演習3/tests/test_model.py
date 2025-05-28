@@ -12,6 +12,10 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 
+import mlflow.pyfunc
+from mlflow.tracking import MlflowClient
+import time
+
 # テスト用データとモデルパスを定義
 DATA_PATH = os.path.join(os.path.dirname(__file__), "../data/Titanic.csv")
 MODEL_DIR = os.path.join(os.path.dirname(__file__), "../models")
@@ -171,3 +175,51 @@ def test_model_reproducibility(sample_data, preprocessor):
     assert np.array_equal(
         predictions1, predictions2
     ), "モデルの予測結果に再現性がありません"
+
+
+def test_mlflow_model_performance_degradation(sample_data):
+    """MLflowから過去と最新のモデルを取得し、性能劣化がないか検証"""
+    client = MlflowClient()
+    experiment = client.get_experiment_by_name("Default")
+    runs = client.search_runs(
+        experiment_ids=[experiment.experiment_id],
+        order_by=["attributes.start_time DESC"],
+        max_results=2,
+    )
+
+    if len(runs) < 2:
+        pytest.skip("比較できる過去モデルがMLflowに存在しません")
+
+    # 最新と直前の2つのランID
+    latest_run_id = runs[0].info.run_id
+    previous_run_id = runs[1].info.run_id
+
+    # モデルの読み込み
+    latest_model = mlflow.pyfunc.load_model(f"runs:/{latest_run_id}/model")
+    previous_model = mlflow.pyfunc.load_model(f"runs:/{previous_run_id}/model")
+
+    # テストデータの用意
+    df = sample_data.drop("Survived", axis=1)
+    y_true = sample_data["Survived"].astype(int)
+
+    # 最新モデルで予測・精度・時間
+    start = time.time()
+    y_pred_latest = latest_model.predict(df)
+    time_latest = time.time() - start
+    acc_latest = accuracy_score(y_true, y_pred_latest)
+
+    # 過去モデルで予測・精度・時間
+    start = time.time()
+    y_pred_prev = previous_model.predict(df)
+    time_prev = time.time() - start
+    acc_prev = accuracy_score(y_true, y_pred_prev)
+
+    # 精度の比較
+    assert (
+        acc_latest >= acc_prev - 0.01
+    ), f"最新モデルの精度が過去より低下: 最新={acc_latest:.4f}, 過去={acc_prev:.4f}"
+
+    # 推論時間の比較
+    assert (
+        time_latest <= time_prev + 0.1
+    ), f"最新モデルの推論時間が遅い: 最新={time_latest:.4f}s, 過去={time_prev:.4f}s"
